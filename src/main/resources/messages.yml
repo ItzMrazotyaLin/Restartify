@@ -7,7 +7,7 @@
 #    %seconds%  - оставшееся время в секундах
 #    %total%    - длительность отсчёта в секундах
 #    %progress% - сколько процентов отсчёта осталось
-#    %error%    - текст ошибки (только в command-error)
+#    %error%    - текст ошибки (только в restart-fallback)
 #
 #  Форматирование: MiniMessage (<red>, <bold>, <gradient:#ff0000:#0000ff>)
 #  + классические коды (&c, &l, &#RRGGBB) одновременно.
@@ -20,7 +20,7 @@ settings:
 prefix: "<gray>[</gray><gradient:#ff5f6d:#ffc371><bold>Restartify</bold></gradient><gray>]</gray> "
 
 no-permission: "<red>У вас нет прав на использование этой команды."
-usage: "<gray>Использование: <white>/reboot <gray>[cancel|reload]"
+usage: "<gray>Использование: <white>/reboot <gray>[start|cancel|reload]"
 
 # --- Обратный отсчёт -----------------------------------------------------
 started: "<gray>Рестарт запущен: <white>%sender%<gray>, перезапуск через <white>%time%<gray>."
@@ -36,7 +36,7 @@ canceled-broadcast: "<yellow>Перезапуск сервера <red>отмен
 # --- Служебное -----------------------------------------------------------
 reload-success: "<green>Конфигурация Restartify успешно перезагружена."
 reload-failed: "<red>Не удалось перезагрузить конфигурацию. Подробности в консоли."
-command-error: "<red>Ошибка при выполнении команды рестарта: <white>%error%"
+restart-fallback: "<red>Нативный рестарт не поддерживается ядром, сервер будет выключен: <white>%error%"
 
 # --- BossBar -------------------------------------------------------------
 bossbar:

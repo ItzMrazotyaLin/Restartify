@@ -7,15 +7,15 @@ author: ${authors}
 website: https://github.com/itzmr
 load: POSTWORLD
 
+# Внимание: команда /restart намеренно не регистрируется.
+# Она встроена в ядро (org.spigotmc.RestartCommand), и её перехват приводил к
+# зацикливанию рестарта. Используйте /reboot — он запускает таймер и сам
+# вызывает нативный Bukkit.spigot().restart().
 commands:
   reboot:
     description: Запустить таймер перезапуска сервера.
-    usage: /reboot [cancel|reload]
-    aliases: [ rb, restartify ]
-    permission: restartify.admin
-  restart:
-    description: Запустить таймер перезапуска сервера.
-    usage: /restart [cancel|reload]
+    usage: /reboot [start|cancel|reload]
+    aliases: [ rb ]
     permission: restartify.admin
 
 permissions:

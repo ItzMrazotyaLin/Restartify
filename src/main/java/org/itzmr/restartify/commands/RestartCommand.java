@@ -1,9 +1,7 @@
 package org.itzmr.restartify.commands;
 
-import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -16,13 +14,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
- * Обработчик команд {@code /reboot} и {@code /restart}
- * (а также подкоманд {@code cancel} и {@code reload}).
+ * Обработчик команды {@code /reboot} и её подкоманд
+ * {@code cancel}, {@code reload}.
+ *
+ * <p>Команда {@code /restart} намеренно НЕ регистрируется: она встроена в ядро
+ * ({@code org.spigotmc.RestartCommand}), и её перехват приводил к зацикливанию
+ * {@code dispatchCommand("restart") → Restartify → dispatchCommand("restart") → ...}.
+ * Теперь перезапуск выполняется напрямую через {@code Bukkit.spigot().restart()}.</p>
  */
 public final class RestartCommand implements CommandExecutor, TabCompleter {
+
+    private static final String COMMAND_NAME = "reboot";
 
     private static final String SUB_START = "start";
     private static final String SUB_CANCEL = "cancel";
@@ -38,75 +42,17 @@ public final class RestartCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Регистрирует исполнителя во всех командах плагина.
+     * Регистрирует исполнителя и автодополнение для {@code /reboot}.
      */
     public void register() {
-        registerExecutor("reboot");
-
-        if (plugin.getConfigManager().isOverrideBuiltinRestart()) {
-            takeOverBuiltinRestart();
-        } else {
-            plugin.getLogger().info("Restartify: /restart остаётся встроенной командой сервера "
-                    + "(commands.override-builtin-restart: false).");
-        }
-    }
-
-    private void registerExecutor(String name) {
-        PluginCommand command = plugin.getCommand(name);
+        PluginCommand command = plugin.getCommand(COMMAND_NAME);
         if (command == null) {
-            plugin.getLogger().warning("Restartify: команда /" + name + " отсутствует в plugin.yml.");
+            plugin.getLogger().severe("Restartify: команда /" + COMMAND_NAME
+                    + " отсутствует в plugin.yml — команда не будет работать!");
             return;
         }
         command.setExecutor(this);
         command.setTabCompleter(this);
-    }
-
-/**
-     * Bukkit/Paper регистрирует встроенную команду {@code /restart}
-     * ({@code org.spigotmc.RestartCommand}) ПОСЛЕ команд плагинов, поэтому одного
-     * объявления в {@code plugin.yml} недостаточно.
-     *
-     * <p>Кроме того {@code SimpleCommandMap#register} отказывается перезаписывать ярлык,
-     * если в {@code knownCommands} уже лежит запись с таким же ярлыком
-     * (проверка {@code existing.getLabel().equals(label)}), поэтому старую запись нужно
-     * предварительно вычистить из карты.</p>
-     */
-    private void takeOverBuiltinRestart() {
-        PluginCommand ours = plugin.getCommand("restart");
-        if (ours == null) {
-            plugin.getLogger().warning("Restartify: команда /restart отсутствует в plugin.yml.");
-            return;
-        }
-        ours.setExecutor(this);
-        ours.setTabCompleter(this);
-
-        CommandMap commandMap = Bukkit.getCommandMap();
-        Command current = commandMap.getCommand("restart");
-        if (current == ours) {
-            return;
-        }
-        String previous = current == null ? "—" : current.getClass().getName();
-
-        try {
-            Map<String, Command> known = commandMap.getKnownCommands();
-            if (current != null) {
-                known.values().removeIf(command -> command == current);
-            }
-            known.remove("restart");
-        } catch (UnsupportedOperationException exception) {
-            plugin.getLogger().warning("Restartify: карта команд сервера недоступна для изменения, "
-                    + "/restart остаётся встроенной командой. Используйте /reboot.");
-            return;
-        }
-
-        commandMap.register("restart", ours);
-
-        if (commandMap.getCommand("restart") != ours) {
-            plugin.getLogger().warning("Restartify: не удалось перехватить /restart "
-                    + "(занята командой " + previous + "). Используйте /reboot.");
-        } else {
-            plugin.getLogger().info("Restartify: команда /restart перехвачена (была: " + previous + ").");
-        }
     }
 
     @Override

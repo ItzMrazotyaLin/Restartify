@@ -27,9 +27,9 @@ public final class ConfigManager {
 
     /** Что делать по окончании отсчёта. */
     public enum RestartAction {
-        /** Выполнить команду от консоли. */
-        COMMAND,
-        /** Корректно выключить сервер. */
+        /** Нативный рестарт ядра: {@code Bukkit.spigot().restart()}. */
+        RESTART,
+        /** Корректное выключение сервера: {@code Bukkit.shutdown()}. */
         SHUTDOWN
     }
 
@@ -56,9 +56,9 @@ public final class ConfigManager {
     private static final String DEFAULT_CANCELED_BROADCAST = "<yellow>Перезапуск сервера <red>отменён<yellow>.";
     private static final String DEFAULT_RELOAD_SUCCESS = "<green>Конфигурация Restartify успешно перезагружена.";
     private static final String DEFAULT_RELOAD_FAILED = "<red>Не удалось перезагрузить конфигурацию. Подробности в консоли.";
-    private static final String DEFAULT_COMMAND_ERROR = "<red>Ошибка при выполнении команды рестарта: <white>%error%";
+    private static final String DEFAULT_RESTART_FALLBACK = "<red>Нативный рестарт не поддерживается ядром, сервер будет выключен: <white>%error%";
     private static final String DEFAULT_NO_PERMISSION = "<red>У вас нет прав на использование этой команды.";
-    private static final String DEFAULT_USAGE = "<gray>Использование: <white>/reboot <gray>[cancel|reload]";
+    private static final String DEFAULT_USAGE = "<gray>Использование: <white>/reboot <gray>[start|cancel|reload]";
     private static final String DEFAULT_BOSSBAR_TITLE = "<red><bold>Рестарт через</bold> <white>%time%";
 
     private final Restartify plugin;
@@ -76,17 +76,12 @@ public final class ConfigManager {
     private BossBar.Color bossBarColor = BossBar.Color.RED;
     private BossBar.Overlay bossBarOverlay = BossBar.Overlay.PROGRESS;
     private boolean bossBarDarkenScreen = true;
-    private RestartAction restartAction = RestartAction.COMMAND;
-    private String restartCommand = "restart";
+    private RestartAction restartAction = RestartAction.RESTART;
     private int restartDelayTicks = 20;
-    private boolean shutdownAfterCommand = false;
 
     // --- сообщения ---
     private boolean prefixEnabled = true;
     private Component prefix = Component.empty();
-
-    // --- команды ---
-    private boolean overrideBuiltinRestart = true;
 
     public ConfigManager(Restartify plugin) {
         this.plugin = plugin;
@@ -142,8 +137,6 @@ public final class ConfigManager {
     }
 
     private void cacheConfig() {
-        overrideBuiltinRestart = config.getBoolean("commands.override-builtin-restart", true);
-
         countdownSeconds = Math.max(1, config.getInt("countdown.seconds", 60));
 
         chatEnabled = config.getBoolean("chat.enabled", true);
@@ -172,14 +165,8 @@ public final class ConfigManager {
         bossBarOverlay = parseOverlay(config.getString("bossbar.overlay", "SOLID"));
         bossBarDarkenScreen = config.getBoolean("bossbar.darken-screen", true);
 
-        restartAction = parseAction(config.getString("restart.action", "COMMAND"));
-        restartCommand = config.getString("restart.command", "restart");
-        if (restartCommand == null) {
-            restartCommand = "restart";
-        }
-        restartCommand = restartCommand.trim();
+        restartAction = parseAction(config.getString("restart.action", "RESTART"));
         restartDelayTicks = Math.max(0, config.getInt("restart.delay-ticks", 20));
-        shutdownAfterCommand = config.getBoolean("restart.shutdown-after-command", false);
     }
 
     private AnnounceMode parseMode(String raw) {
@@ -245,18 +232,28 @@ public final class ConfigManager {
 
     private RestartAction parseAction(String raw) {
         if (raw == null) {
-            return RestartAction.COMMAND;
+            return RestartAction.RESTART;
         }
         String value = raw.trim().toUpperCase(Locale.ROOT);
+
+        if ("RESTART".equals(value)) {
+            return RestartAction.RESTART;
+        }
         if ("SHUTDOWN".equals(value) || "STOP".equals(value) || "KICK".equals(value)) {
             return RestartAction.SHUTDOWN;
         }
         if ("COMMAND".equals(value) || "CONSOLE".equals(value)) {
-            return RestartAction.COMMAND;
+            // Старый режим отправлял команду "restart" через dispatchCommand.
+            // Теперь это привело бы к зацикливанию (плагин перехватывал /restart),
+            // поэтому приводим к нативному рестарту ядра.
+            plugin.getLogger().warning("Restartify: restart.action=COMMAND больше не поддерживается "
+                    + "(командный рестарт зацикливался) — используется нативный RESTART.");
+            return RestartAction.RESTART;
         }
+
         plugin.getLogger().warning("Restartify: неизвестный restart.action '" + raw
-                + "' — используется COMMAND.");
-        return RestartAction.COMMAND;
+                + "' — используется RESTART. Допустимо: RESTART, SHUTDOWN.");
+        return RestartAction.RESTART;
     }
 
     // ==================================================================
@@ -314,23 +311,8 @@ public final class ConfigManager {
         return restartAction;
     }
 
-    public String getRestartCommand() {
-        return restartCommand;
-    }
-
     public int getRestartDelayTicks() {
         return restartDelayTicks;
-    }
-
-    public boolean isShutdownAfterCommand() {
-        return shutdownAfterCommand;
-    }
-
-    /**
-     * Перехватывать ли встроенную команду сервера {@code /restart}.
-     */
-    public boolean isOverrideBuiltinRestart() {
-        return overrideBuiltinRestart;
     }
 
     // ==================================================================
@@ -439,9 +421,13 @@ public final class ConfigManager {
         MessageUtils.send(sender, getPrefixedComponent("reload-failed", DEFAULT_RELOAD_FAILED, Collections.emptyMap()));
     }
 
-    public void sendCommandError(String error) {
+    /**
+     * {@code restart-fallback} — нативный рестарт не поддерживается ядром,
+     * сервер будет выключен через {@code Bukkit.shutdown()}.
+     */
+    public void sendRestartFallback(String error) {
         Map<String, String> placeholders = new HashMap<>(2);
         placeholders.put("%error%", error == null ? "unknown" : error);
-        MessageUtils.broadcast(getPrefixedComponent("command-error", DEFAULT_COMMAND_ERROR, placeholders));
+        MessageUtils.broadcast(getPrefixedComponent("restart-fallback", DEFAULT_RESTART_FALLBACK, placeholders));
     }
 }

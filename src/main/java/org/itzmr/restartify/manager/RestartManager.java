@@ -40,7 +40,11 @@ public final class RestartManager {
     private final Set<UUID> bossBarViewers = ConcurrentHashMap.newKeySet();
 
     private BukkitTask task;
-    private int lastTickSecond = Integer.MIN_VALUE;
+    /**
+     * Значение {@code remaining} на последнем обработанном тике.
+     * Всегда задаётся в {@link #start(CommandSender)} перед запуском таймера.
+     */
+    private int lastTickSecond;
     private boolean disabling;
 
     public RestartManager(Restartify plugin, ConfigManager config) {
@@ -75,7 +79,13 @@ public final class RestartManager {
         totalSeconds = Math.max(1, config.getCountdownSeconds());
         endTimeMillis = System.currentTimeMillis() + totalSeconds * 1000L;
         initiatorName = resolveName(initiator);
-        lastTickSecond = Integer.MIN_VALUE;
+
+        // Первое сообщение рассылается здесь, поэтому заранее помечаем
+        // текущую секунду как обработанную — иначе первый тик таймера
+        // отправит то же сообщение второй раз (shouldAnnounce для стартовой
+        // секунды всегда true: 0 % interval == 0, а total есть в SCHEDULE).
+        lastTickSecond = totalSeconds;
+
         running = true;
 
         createBossBar();
@@ -182,12 +192,16 @@ public final class RestartManager {
         }
 
         int remaining = remainingFrom(System.currentTimeMillis());
-        updateBossBar(remaining);
 
+        // Работаем только когда счётчик секунд реально изменился:
+        // это и защита от повторной рассылки, и защита от лишнего
+        // пересчёта заголовка BossBar на каждом тике.
         if (remaining == lastTickSecond) {
             return;
         }
         lastTickSecond = remaining;
+
+        updateBossBar(remaining);
 
         if (remaining <= 0) {
             finish();
@@ -223,40 +237,40 @@ public final class RestartManager {
         Bukkit.getScheduler().runTaskLater(plugin, this::executeRestart, delay);
     }
 
+    /**
+     * Выполняет перезапуск по окончании отсчёта.
+     *
+     * <p>Нативный рестарт идёт через {@code Bukkit.spigot().restart()} — это прямой
+     * вызов статического метода ядра ({@code org.spigotmc.RestartCommand.restart()}),
+     * а НЕ dispatch команды. Поэтому он не может попасть обратно в сам плагин
+     * и не создаёт цикл «рестарт → /restart → рестарт».</p>
+     *
+     * <p>Если ядро не поддерживает метод, безопасно откатываемся на
+     * {@link Bukkit#shutdown()}.</p>
+     */
+    @SuppressWarnings("deprecation")
     private void executeRestart() {
-        ConfigManager.RestartAction action = config.getRestartAction();
-
-        if (action == ConfigManager.RestartAction.SHUTDOWN) {
-            Bukkit.shutdown();
-            return;
-        }
-
-        String command = config.getRestartCommand();
-        if (command == null) {
-            command = "";
-        }
-        command = command.trim();
-        if (command.startsWith("/")) {
-            command = command.substring(1);
-        }
-        if (command.isEmpty()) {
-            plugin.getLogger().warning("restart.command пуст — выполняю Bukkit.shutdown().");
+        if (config.getRestartAction() == ConfigManager.RestartAction.SHUTDOWN) {
             Bukkit.shutdown();
             return;
         }
 
         try {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+            Bukkit.spigot().restart();
         } catch (Throwable throwable) {
-            plugin.getLogger().log(Level.SEVERE, "Ошибка при выполнении команды '" + command + "'", throwable);
-            config.sendCommandError(String.valueOf(throwable.getMessage()));
+            plugin.getLogger().log(Level.WARNING,
+                    "Ядро не поддерживает Bukkit.spigot().restart() — выключаю сервер через Bukkit.shutdown()",
+                    throwable);
+            config.sendRestartFallback(describe(throwable));
             Bukkit.shutdown();
-            return;
         }
+    }
 
-        if (config.isShutdownAfterCommand()) {
-            Bukkit.shutdown();
-        }
+    private static String describe(Throwable throwable) {
+        String message = throwable.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? throwable.getClass().getSimpleName()
+                : message;
     }
 
     // ==================================================================
