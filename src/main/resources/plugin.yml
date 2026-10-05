@@ -1,0 +1,24 @@
+name: ${name}
+version: '${version}'
+main: org.itzmr.restartify.Restartify
+api-version: '1.20'
+description: Restartify - предупреждение игроков о рестарте сервера с BossBar и Adventure
+author: ${authors}
+website: https://github.com/itzmr
+load: POSTWORLD
+
+commands:
+  reboot:
+    description: Запустить таймер перезапуска сервера.
+    usage: /reboot [cancel|reload]
+    aliases: [ rb, restartify ]
+    permission: restartify.admin
+  restart:
+    description: Запустить таймер перезапуска сервера.
+    usage: /restart [cancel|reload]
+    permission: restartify.admin
+
+permissions:
+  restartify.admin:
+    description: Позволяет запускать и отменять перезапуск сервера.
+    default: op

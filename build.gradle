@@ -1,0 +1,98 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '9.6.1'
+    id 'xyz.jpenilla.run-paper' version '3.1.0'
+}
+
+group = project.group
+version = project.version
+description = project.description
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'papermc'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.20-R0.1-SNAPSHOT'
+
+    // Adventure и MiniMessage уже поставляются вместе с Paper API,
+    // но объявляются явно, чтобы проект компилировался и в IDE без classpath сервера.
+    compileOnly 'net.kyori:adventure-api:4.14.0'
+    compileOnly 'net.kyori:adventure-text-minimessage:4.14.0'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+
+tasks.withType(AbstractCopyTask).configureEach {
+    filteringCharset = 'UTF-8'
+}
+
+// Кириллица в ресурсах: копируем в исходной кодировке.
+tasks.named('processResources') {
+    def pluginTokens = [
+            '${name}'    : project.name,
+            '${version}' : project.version.toString(),
+            '${authors}' : project.findProperty('authors') ?: 'itzmr',
+    ]
+    inputs.properties(pluginTokens)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+    // Строковая замена вместо expand(): кодировка однозначно задаётся filteringCharset (UTF-8),
+    // поэтому кириллица в description не портится на Windows.
+    filesMatching('plugin.yml') {
+        filter { String line ->
+            String result = line
+            pluginTokens.each { token, value -> result = result.replace(token, value) }
+            result
+        }
+    }
+}
+
+tasks.named('jar') {
+    manifest {
+        attributes(
+                'Implementation-Title'   : project.name,
+                'Implementation-Version' : project.version,
+                'Specification-Vendor'   : 'itzmr'
+        )
+    }
+}
+
+// Все зависимости объявлены как compileOnly (предоставляются сервером),
+// поэтому shadowJar не перемещает пакеты — Adventure нельзя релоцировать,
+// иначе компоненты перестанут быть сериализуемыми сервером.
+tasks.named('shadowJar') {
+    archiveClassifier = 'shadow'
+    mergeServiceFiles()
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('shadowJar')
+}
+
+// Minecraft 1.20.6 требует Java 21, хотя сам плагин собирается под Java 17,
+// поэтому для dev-сервера указываем отдельный launcher.
+tasks.named('runServer') {
+    minecraftVersion '1.20.6'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    jvmArgs '-Xms1G', '-Xmx2G'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
