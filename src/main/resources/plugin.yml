@@ -4,7 +4,7 @@ main: org.itzmr.restartify.Restartify
 api-version: '1.20'
 description: Restartify - предупреждение игроков о рестарте сервера с BossBar и Adventure
 author: ${authors}
-website: https://github.com/itzmr
+website: https://github.com/ItzMrazotyaLin/Restartify
 load: POSTWORLD
 
 # Внимание: команда /restart намеренно не регистрируется.
