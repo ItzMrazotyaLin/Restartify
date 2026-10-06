@@ -4,6 +4,8 @@
 [![Java](https://img.shields.io/badge/java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
 [![API](https://img.shields.io/badge/api-1.20%20--%2026.x%2B-4A4A4A?style=flat-square)](https://papermc.io)
 
+[Read in English](README_EN.md)
+
 Плагин для **плавного перезапуска сервера**: перед рестартом запускается обратный отсчёт с
 настраиваемыми оповещениями в чат и BossBar на экране, а сам перезапуск выполняется нативным
 методом ядра.
