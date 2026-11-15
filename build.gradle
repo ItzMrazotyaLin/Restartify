@@ -25,8 +25,8 @@ repositories {
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.20-R0.1-SNAPSHOT'
 
-    // Adventure и MiniMessage уже поставляются вместе с Paper API,
-    // но объявляются явно, чтобы проект компилировался и в IDE без classpath сервера.
+    // Adventure and MiniMessage are bundled with Paper API,
+    // declared explicitly so the project compiles in IDEs without a server classpath.
     compileOnly 'net.kyori:adventure-api:4.14.0'
     compileOnly 'net.kyori:adventure-text-minimessage:4.14.0'
 }
@@ -40,7 +40,7 @@ tasks.withType(AbstractCopyTask).configureEach {
     filteringCharset = 'UTF-8'
 }
 
-// Кириллица в ресурсах: копируем в исходной кодировке.
+// Preserve UTF-8 characters in resources when filtering plugin.yml.
 tasks.named('processResources') {
     def pluginTokens = [
             '${name}'    : project.name,
@@ -50,8 +50,8 @@ tasks.named('processResources') {
     inputs.properties(pluginTokens)
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 
-    // Строковая замена вместо expand(): кодировка однозначно задаётся filteringCharset (UTF-8),
-    // поэтому кириллица в description не портится на Windows.
+    // String replacement instead of expand(): encoding is explicitly controlled by filteringCharset (UTF-8),
+    // preventing character corruption on Windows.
     filesMatching('plugin.yml') {
         filter { String line ->
             String result = line
@@ -71,9 +71,9 @@ tasks.named('jar') {
     }
 }
 
-// Все зависимости объявлены как compileOnly (предоставляются сервером),
-// поэтому shadowJar не перемещает пакеты — Adventure нельзя релоцировать,
-// иначе компоненты перестанут быть сериализуемыми сервером.
+// All dependencies are declared as compileOnly (provided by the server),
+// so shadowJar does not relocate packages — Adventure must not be relocated,
+// otherwise components cannot be serialized by the server.
 tasks.named('shadowJar') {
     archiveClassifier = 'shadow'
     mergeServiceFiles()
@@ -83,8 +83,8 @@ tasks.named('assemble') {
     dependsOn tasks.named('shadowJar')
 }
 
-// Minecraft 1.20.6 требует Java 21, хотя сам плагин собирается под Java 17,
-// поэтому для dev-сервера указываем отдельный launcher.
+// Minecraft 1.20.6 requires Java 21, while the plugin targets Java 17,
+// so a separate launcher is configured for the dev server.
 tasks.named('runServer') {
     minecraftVersion '1.20.6'
     javaLauncher = javaToolchains.launcherFor {

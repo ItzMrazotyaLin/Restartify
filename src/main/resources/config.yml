@@ -1,26 +1,29 @@
 # ==========================================================================
-#  Restartify - конфигурация
+#  Restartify - configuration
 # ==========================================================================
-#  Весь текст поддерживает ОДНОВРЕМЕННО:
-#    * MiniMessage-теги:  <red>, <bold>, <gradient:#ff0000:#0000ff>, <#RRGGBB>
-#    * Legacy-коды:       &c, &l, &#RRGGBB
+#  All text supports BOTH formats simultaneously:
+#    * MiniMessage tags: <red>, <bold>, <gradient:#ff0000:#0000ff>, <#RRGGBB>
+#    * Legacy codes:     &c, &l, &#RRGGBB
 # ==========================================================================
 
-# Длительность обратного отсчёта в секундах (минимум 1).
+# Plugin localization language. Available options: en, ru
+locale: en
+
+# Countdown duration in seconds (minimum 1).
 countdown:
   seconds: 60
 
-# Чатовые сообщения во время обратного отсчёта.
-# false  - игроки увидят только BossBar (оповещения админам и ответы на команды
-#          продолжат отправляться, чтобы команда не выглядела «мёртвой»).
+# Chat announcements during the countdown.
+# false - players only see the BossBar (admin notifications and command replies
+#         continue to be sent so commands do not appear unresponsive).
 chat:
   enabled: true
 
-# Когда отправлять сообщения игрокам.
+# When to send countdown messages to players.
 announce:
-  # INTERVAL  - каждые announce.interval-seconds секунд (60, 45, 30, 15 ...).
-  # SCHEDULE  - только на секундах из списка announce.seconds ниже.
-  # OFF       - не отправлять сообщения вовсе (BossBar продолжает работать).
+  # INTERVAL  - every announce.interval-seconds seconds (60, 45, 30, 15 ...).
+  # SCHEDULE  - only at the seconds listed in announce.seconds below.
+  # OFF       - do not send chat messages (BossBar continues to work).
   mode: INTERVAL
   interval-seconds: 15
   seconds:
@@ -34,25 +37,41 @@ announce:
     - 2
     - 1
 
-# BossBar обратного отсчёта (Adventure BossBar).
+# Countdown BossBar (Adventure BossBar).
 bossbar:
   enabled: true
-  # Цвет: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+  # Color: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
   color: RED
-  # Стиль (Adventure BossBar.Overlay): SOLID, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
-  # (SOLID — сплошная заливка, в Adventure этот стиль называется PROGRESS)
+  # Style (Adventure BossBar.Overlay): SOLID, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
+  # (SOLID is a continuous bar, named PROGRESS in Adventure)
   overlay: SOLID
-  # Затемнять экран, пока виден BossBar (косметика).
+  # Darken the screen while the BossBar is visible (cosmetic).
   darken-screen: true
 
-# Действие, выполняемое после окончания отсчёта.
+# Action performed when the countdown finishes.
 restart:
-  # RESTART  — нативный рестарт ядра: Bukkit.spigot().restart().
-  #            Это прямой вызов метода ядра (org.spigotmc.RestartCommand.restart()),
-  #            а НЕ команда, поэтому он не может зациклиться на самом плагине.
-  #            Если ядро не поддерживает метод — автоматический откат на SHUTDOWN.
-  # SHUTDOWN — выключить сервер: Bukkit.shutdown().
+  # RESTART  - native core restart: Bukkit.spigot().restart().
+  #            This calls the core method directly (org.spigotmc.RestartCommand.restart()),
+  #            NOT a command dispatch, so it cannot loop back into the plugin.
+  #            If the core does not support it, automatically falls back to SHUTDOWN.
+  # SHUTDOWN - stop the server: Bukkit.shutdown().
   action: RESTART
-  # Задержка в тиках перед перезапуском (20 тиков = 1 секунда),
-  # чтобы игроки успели увидеть финальное сообщение.
+  # Delay in ticks before restarting (20 ticks = 1 second),
+  # allowing players to see the final message.
   delay-ticks: 20
+
+# PvP protection during the restart countdown.
+pvp-protection:
+  enabled: true
+  # Message sent when a player attempts to attack another player during countdown
+  deny-message: "<red>PvP is disabled! The server is about to restart.</red>"
+
+# Automatic scheduled restarts by time and timezone.
+scheduled-restart:
+  enabled: true
+  # IANA timezone (see TIMEZONES.md for the full list)
+  timezone: "UTC"
+  # List of restart times in HH:mm format (24-hour clock)
+  times:
+    - "04:00"
+    - "16:00"

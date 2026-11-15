@@ -2,10 +2,10 @@ package org.itzmr.restartify.utils;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.itzmr.restartify.Restartify;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.itzmr.restartify.Restartify;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,33 +16,28 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Универсальный парсер текста.
+ * Universal text parser and message dispatcher.
  *
- * <p>Поддерживает ОДНОВРЕМЕННО два синтаксиса:</p>
+ * <p>Supports BOTH syntaxes simultaneously:</p>
  * <ul>
  *     <li>MiniMessage: {@code <red>}, {@code <bold>}, {@code <gradient:#ff0000:#0000ff>}, {@code <#RRGGBB>}</li>
  *     <li>Legacy: {@code &c}, {@code &l}, {@code &#RRGGBB}, {@code &x&f&f&0&0&0&0}</li>
  * </ul>
  *
- * <p>Идея: legacy-коды переводятся в открывающие MiniMessage-теги,
- * а закрывающие теги проставляются автоматически в конце строки (или при {@code &r}).
- * Благодаря этому итоговая строка всегда является корректным MiniMessage-документом
- * с правильной вложенностью тегов.</p>
- *
- * <p>Символы {@code <}, {@code >} и {@code &} в MiniMessage-синтаксисе не конфликтуют
- * между собой, поэтому смешивание в одной строке безопасно.</p>
+ * <p>Legacy codes are converted into opening MiniMessage tags, with matching closing tags
+ * appended at the end of the string (or on {@code &r}), ensuring valid MiniMessage tag nesting.</p>
  */
 public final class MessageUtils {
 
     /**
-     * Порядок альтернатив важен: hex ({@code &#RRGGBB}) проверяется раньше
-     * одиночного символа, {@code &x&R&R&G&G&B&B} — раньше {@code &x}.
+     * Order of alternatives matters: hex ({@code &#RRGGBB}) is matched before
+     * single-character codes, and {@code &x&R&R&G&G&B&B} before {@code &x}.
      */
     private static final Pattern LEGACY_PATTERN = Pattern.compile(
             "&(#[0-9a-fA-F]{6}|[xX](?:&[0-9a-fA-F]){6}|[0-9a-fA-FkK-lL-oOrR])"
     );
 
-    /** Символ, который в конвертируемой строке означает «сбросить всё». */
+    /** Tag name used internally to represent formatting reset ({@code &r}). */
     private static final String RESET_TAG = "reset";
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
@@ -51,7 +46,7 @@ public final class MessageUtils {
     }
 
     // ------------------------------------------------------------------
-    //  Таблицы legacy-кодов
+    //  Legacy color code lookup table
     // ------------------------------------------------------------------
 
     private static final Map<Character, String> LEGACY_TAGS = new HashMap<>(26);
@@ -84,15 +79,15 @@ public final class MessageUtils {
     }
 
     // ------------------------------------------------------------------
-    //  Основной API
+    //  Public Parsing API
     // ------------------------------------------------------------------
 
     /**
-     * Преобразует строку в Adventure {@link Component},
-     * поддерживая MiniMessage-теги и legacy-коды одновременно.
+     * Parses a string into an Adventure {@link Component}, supporting both MiniMessage
+     * tags and legacy formatting codes.
      *
-     * @param input исходная строка (может быть {@code null})
-     * @return готовый компонент
+     * @param input raw input string (may be {@code null})
+     * @return parsed component
      */
     public static Component parse(String input) {
         if (input == null || input.isEmpty()) {
@@ -102,16 +97,16 @@ public final class MessageUtils {
     }
 
     /**
-     * {@link #parse(String)} с подстановкой плейсхолдеров вида {@code %time%}.
+     * Parses {@code input} after substituting placeholders such as {@code %time%}.
      *
-     * @param placeholders карта плейсхолдеров (может быть {@code null})
+     * @param placeholders placeholder map (may be {@code null})
      */
     public static Component parse(String input, Map<String, String> placeholders) {
         return parse(applyPlaceholders(input, placeholders));
     }
 
     /**
-     * {@link #parse(String)} с одним плейсхолдером.
+     * {@link #parse(String)} with a single placeholder.
      */
     public static Component parse(String input, String key, String value) {
         if (key == null) {
@@ -123,7 +118,7 @@ public final class MessageUtils {
     }
 
     /**
-     * {@link #parse(String)} с двумя плейсхолдерами.
+     * {@link #parse(String)} with two placeholders.
      */
     public static Component parse(String input, String key1, String value1, String key2, String value2) {
         Map<String, String> map = new HashMap<>(4);
@@ -137,7 +132,7 @@ public final class MessageUtils {
     }
 
     /**
-     * Склеивает компоненты в один.
+     * Appends {@code main} after {@code prefix} as a single component.
      */
     public static Component join(Component prefix, Component main) {
         if (prefix == null) {
@@ -150,8 +145,7 @@ public final class MessageUtils {
     }
 
     /**
-     * Заменяет плейсхолдеры в строке БЕЗ парсинга MiniMessage.
-     * Используется, если нужно получить «сырую» строку (например, для лога).
+     * Replaces placeholders in {@code input} without MiniMessage parsing.
      */
     public static String applyPlaceholders(String input, Map<String, String> placeholders) {
         if (input == null || input.isEmpty() || placeholders == null || placeholders.isEmpty()) {
@@ -170,7 +164,7 @@ public final class MessageUtils {
     }
 
     // ------------------------------------------------------------------
-    //  Отправка сообщений
+    //  Message Dispatching
     // ------------------------------------------------------------------
 
     public static void send(CommandSender sender, Component component) {
@@ -181,7 +175,7 @@ public final class MessageUtils {
     }
 
     /**
-     * Отправляет сообщение всем игрокам онлайн.
+     * Broadcasts a component to all online players.
      */
     public static void broadcast(Component component) {
         if (component == null) {
@@ -193,8 +187,8 @@ public final class MessageUtils {
     }
 
     /**
-     * Отправляет сообщение всем операторам и игрокам с правом
-     * {@link Restartify#ADMIN_PERMISSION}, а также в консоль.
+     * Sends a component to all operators, players with {@link Restartify#ADMIN_PERMISSION},
+     * and the server console.
      */
     public static void sendToAdmins(Component component) {
         if (component == null) {
@@ -212,11 +206,11 @@ public final class MessageUtils {
     }
 
     // ------------------------------------------------------------------
-    //  Форматирование времени
+    //  Time Formatting
     // ------------------------------------------------------------------
 
     /**
-     * {@code 95 -> "01:35"}, {@code 3725 -> "1:02:05"}.
+     * Formats seconds as duration: {@code 95 -> "01:35"}, {@code 3725 -> "1:02:05"}.
      */
     public static String formatDuration(int totalSeconds) {
         long seconds = Math.max(0L, totalSeconds);
@@ -231,11 +225,11 @@ public final class MessageUtils {
     }
 
     // ------------------------------------------------------------------
-    //  Конвертация legacy-кодов
+    //  Legacy Code Conversion
     // ------------------------------------------------------------------
 
     /**
-     * Заменяет {@code &c}-коды на MiniMessage-теги, расставляя закрывающие теги.
+     * Converts {@code &c}-style legacy codes into MiniMessage tags with balanced closing tags.
      */
     private static String convertLegacyCodes(String input) {
         Matcher matcher = LEGACY_PATTERN.matcher(input);
@@ -252,10 +246,10 @@ public final class MessageUtils {
 
             String tag = resolveTag(matcher.group(1));
             if (tag == null) {
-                // Неизвестный код — оставляем как есть.
+                // Unknown code — preserve literally.
                 result.append(matcher.group());
             } else if (RESET_TAG.equals(tag)) {
-                // &r закрывает всё, что было открыто ранее.
+                // &r closes all previously opened tags.
                 closeAll(result, openTags);
             } else {
                 openTags.add(tag);
@@ -271,7 +265,7 @@ public final class MessageUtils {
     }
 
     /**
-     * Закрывает открытые теги в обратном порядке (соблюдая вложенность).
+     * Closes open tags in reverse order to maintain valid nesting.
      */
     private static void closeAll(StringBuilder result, List<String> openTags) {
         for (int i = openTags.size() - 1; i >= 0; i--) {
@@ -281,15 +275,15 @@ public final class MessageUtils {
     }
 
     /**
-     * @param code содержимое группы 1 (то, что после {@code &})
-     * @return имя MiniMessage-тега или {@code null}, если код неизвестен
+     * @param code capture group 1 (text following {@code &})
+     * @return MiniMessage tag name, or {@code null} if unknown
      */
     private static String resolveTag(String code) {
         if (code.length() == 7 && code.charAt(0) == '#') {
             return "#" + code.substring(1).toUpperCase(Locale.ROOT);
         }
         if (code.length() == 13) {
-            // Формат &x&R&R&G&G&B&B: шестёрки лежат на чётных индексах (2, 4, 6, 8, 10, 12).
+            // Format &x&R&R&G&G&B&B: hex digits sit at even indices (2, 4, 6, 8, 10, 12).
             StringBuilder hex = new StringBuilder(6);
             for (int i = 2; i < 13; i += 2) {
                 hex.append(code.charAt(i));

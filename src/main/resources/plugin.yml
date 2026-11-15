@@ -2,23 +2,23 @@ name: ${name}
 version: '${version}'
 main: org.itzmr.restartify.Restartify
 api-version: '1.20'
-description: Restartify - предупреждение игроков о рестарте сервера с BossBar и Adventure
+description: Restartify - graceful server restart countdown with BossBar and Adventure
 author: ${authors}
 website: https://github.com/ItzMrazotyaLin/Restartify
 load: POSTWORLD
 
-# Внимание: команда /restart намеренно не регистрируется.
-# Она встроена в ядро (org.spigotmc.RestartCommand), и её перехват приводил к
-# зацикливанию рестарта. Используйте /reboot — он запускает таймер и сам
-# вызывает нативный Bukkit.spigot().restart().
+# Note: the /restart command is deliberately NOT registered.
+# It is built into the server core (org.spigotmc.RestartCommand), and intercepting it
+# caused restart loops. Use /reboot instead — it runs the countdown and directly
+# invokes Bukkit.spigot().restart().
 commands:
   reboot:
-    description: Запустить таймер перезапуска сервера.
+    description: Start or manage the server restart countdown.
     usage: /reboot [start|cancel|reload]
     aliases: [ rb ]
     permission: restartify.admin
 
 permissions:
   restartify.admin:
-    description: Позволяет запускать и отменять перезапуск сервера.
+    description: Allows starting, cancelling, and reloading the server restart countdown.
     default: op

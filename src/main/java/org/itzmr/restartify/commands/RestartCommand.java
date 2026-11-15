@@ -16,13 +16,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Обработчик команды {@code /reboot} и её подкоманд
- * {@code cancel}, {@code reload}.
+ * Handler for {@code /reboot} and its subcommands {@code start}, {@code cancel}, and {@code reload}.
  *
- * <p>Команда {@code /restart} намеренно НЕ регистрируется: она встроена в ядро
- * ({@code org.spigotmc.RestartCommand}), и её перехват приводил к зацикливанию
- * {@code dispatchCommand("restart") → Restartify → dispatchCommand("restart") → ...}.
- * Теперь перезапуск выполняется напрямую через {@code Bukkit.spigot().restart()}.</p>
+ * <p>The {@code /restart} command is deliberately NOT registered: it is built into the
+ * server core ({@code org.spigotmc.RestartCommand}), and intercepting it previously caused
+ * a restart loop ({@code dispatchCommand("restart") -> Restartify -> dispatchCommand("restart")}).
+ * Restarts are now invoked directly via {@code Bukkit.spigot().restart()}.</p>
  */
 public final class RestartCommand implements CommandExecutor, TabCompleter {
 
@@ -42,13 +41,13 @@ public final class RestartCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Регистрирует исполнителя и автодополнение для {@code /reboot}.
+     * Registers the executor and tab completer for {@code /reboot}.
      */
     public void register() {
         PluginCommand command = plugin.getCommand(COMMAND_NAME);
         if (command == null) {
-            plugin.getLogger().severe("Restartify: команда /" + COMMAND_NAME
-                    + " отсутствует в plugin.yml — команда не будет работать!");
+            plugin.getLogger().severe("Restartify: command /" + COMMAND_NAME
+                    + " is missing from plugin.yml — command will not work!");
             return;
         }
         command.setExecutor(this);
@@ -111,7 +110,7 @@ public final class RestartCommand implements CommandExecutor, TabCompleter {
         List<String> result = new ArrayList<>(3);
         for (String subCommand : SUBCOMMANDS) {
             if (manager.isRunning() && SUB_START.equals(subCommand)) {
-                // Повторный запуск бессмысленен — не подсказываем.
+                // Do not suggest starting again while a countdown is already running.
                 continue;
             }
             if (subCommand.startsWith(prefix)) {

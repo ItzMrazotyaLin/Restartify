@@ -20,11 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
- * Управляет обратным отсчётом: таймер, BossBar, сообщения и сам рестарт.
+ * Manages the restart countdown: timer, BossBar, announcements, PvP lock, and execution.
  *
- * <p>Всё выполняется в основном потоке сервера. Точность отсчёта не зависит
- * от тиков сервера — используется абсолютное время окончания, поэтому лаги
- * не растягивают отсчёт.</p>
+ * <p>All operations run on the main server thread. Countdown accuracy is decoupled from
+ * server TPS by tracking the wall-clock end timestamp, so server lag does not stretch
+ * the countdown duration.</p>
  */
 public final class RestartManager {
 
@@ -32,6 +32,7 @@ public final class RestartManager {
     private final ConfigManager config;
 
     private volatile boolean running;
+    private volatile boolean isRestartPvpDisabled;
     private volatile int totalSeconds;
     private volatile long endTimeMillis;
     private volatile String initiatorName = "Console";
@@ -41,8 +42,8 @@ public final class RestartManager {
 
     private BukkitTask task;
     /**
-     * Значение {@code remaining} на последнем обработанном тике.
-     * Всегда задаётся в {@link #start(CommandSender)} перед запуском таймера.
+     * Value of {@code remaining} processed on the previous tick.
+     * Initialized in {@link #start(CommandSender)} before starting the timer.
      */
     private int lastTickSecond;
     private boolean disabling;
@@ -53,7 +54,7 @@ public final class RestartManager {
     }
 
     // ==================================================================
-    //  Публичное API
+    //  Public API
     // ==================================================================
 
     public boolean isRunning() {
@@ -61,14 +62,23 @@ public final class RestartManager {
     }
 
     /**
-     * Оставшиеся секунды (для внешнего отображения).
+     * Returns {@code true} while PvP between players is disabled during an active countdown.
+     */
+    public boolean isRestartPvpDisabled() {
+        return isRestartPvpDisabled;
+    }
+
+    /**
+     * Returns remaining countdown seconds (for external display).
      */
     public int getRemainingSeconds() {
         return running ? remainingFrom(System.currentTimeMillis()) : 0;
     }
 
     /**
-     * @return {@code true}, если отсчёт был запущен
+     * Starts the restart countdown.
+     *
+     * @return {@code true} if the countdown was started
      */
     public boolean start(CommandSender initiator) {
         if (running) {
@@ -80,13 +90,12 @@ public final class RestartManager {
         endTimeMillis = System.currentTimeMillis() + totalSeconds * 1000L;
         initiatorName = resolveName(initiator);
 
-        // Первое сообщение рассылается здесь, поэтому заранее помечаем
-        // текущую секунду как обработанную — иначе первый тик таймера
-        // отправит то же сообщение второй раз (shouldAnnounce для стартовой
-        // секунды всегда true: 0 % interval == 0, а total есть в SCHEDULE).
+        // The initial announcement is sent here, so mark the starting second as already
+        // processed — otherwise the first timer tick would broadcast it a second time.
         lastTickSecond = totalSeconds;
 
         running = true;
+        isRestartPvpDisabled = config.isPvpProtectionEnabled();
 
         createBossBar();
         showBossBarToEveryone();
@@ -97,12 +106,31 @@ public final class RestartManager {
 
         startTask();
 
-        plugin.getLogger().info("Рестарт запущен (" + initiatorName + "), " + totalSeconds + " c.");
+        plugin.getLogger().info("Restart countdown started (" + initiatorName + "), " + totalSeconds + "s.");
         return true;
     }
 
     /**
-     * @return {@code true}, если отсчёт был активен и отменён
+     * Starts a scheduled restart as Console (must be called on the main thread).
+     */
+    public void startScheduled() {
+        if (running || disabling) {
+            return;
+        }
+        start(Bukkit.getConsoleSender());
+    }
+
+    /**
+     * Synchronizes PvP protection state after configuration reload.
+     */
+    public void onConfigReloaded() {
+        isRestartPvpDisabled = running && config.isPvpProtectionEnabled();
+    }
+
+    /**
+     * Cancels an active restart countdown.
+     *
+     * @return {@code true} if an active countdown was cancelled
      */
     public boolean cancel(CommandSender initiator) {
         if (!running) {
@@ -112,6 +140,7 @@ public final class RestartManager {
 
         int remaining = getRemainingSeconds();
         running = false;
+        isRestartPvpDisabled = false;
 
         stopTask();
         removeBossBar();
@@ -121,12 +150,12 @@ public final class RestartManager {
         config.sendCanceled(placeholders);
         config.sendCanceledBroadcast(placeholders);
 
-        plugin.getLogger().info("Рестарт отменён (" + canceller + ").");
+        plugin.getLogger().info("Restart countdown cancelled (" + canceller + ").");
         return true;
     }
 
     /**
-     * Показывает активный BossBar вошедшему игроку.
+     * Displays the active BossBar to a newly joined player.
      */
     public void showBossBarTo(Player player) {
         BossBar bar = bossBar;
@@ -138,7 +167,7 @@ public final class RestartManager {
     }
 
     /**
-     * Убирает BossBar у вышедшего игрока.
+     * Removes the BossBar from a disconnecting player.
      */
     public void hideBossBarFrom(Player player) {
         if (player == null) {
@@ -152,24 +181,24 @@ public final class RestartManager {
     }
 
     /**
-     * Полная очистка при выключении плагина/сервера (без сообщений).
+     * Cleans up all tasks and BossBars during plugin/server shutdown (without chat broadcasts).
      */
     public void shutdown() {
         disabling = true;
         running = false;
+        isRestartPvpDisabled = false;
         stopTask();
         removeBossBar();
         bossBar = null;
     }
 
     // ==================================================================
-    //  Таймер
+    //  Timer
     // ==================================================================
 
     private void startTask() {
         stopTask();
-        // Важно: BukkitRunnable нельзя передавать в BukkitScheduler#runTaskTimer —
-        // нужно вызывать собственный метод BukkitRunnable#runTaskTimer.
+        // BukkitRunnable must be scheduled via its own runTaskTimer method rather than BukkitScheduler.
         task = new BukkitRunnable() {
             @Override
             public void run() {
@@ -193,9 +222,7 @@ public final class RestartManager {
 
         int remaining = remainingFrom(System.currentTimeMillis());
 
-        // Работаем только когда счётчик секунд реально изменился:
-        // это и защита от повторной рассылки, и защита от лишнего
-        // пересчёта заголовка BossBar на каждом тике.
+        // Act only when the integer second changes to avoid duplicate broadcasts and redundant BossBar updates.
         if (remaining == lastTickSecond) {
             return;
         }
@@ -231,22 +258,18 @@ public final class RestartManager {
         }
 
         config.sendRestarting(placeholders(initiatorName, 0));
-        plugin.getLogger().info("Отсчёт завершён, выполняю рестарт (" + config.getRestartAction() + ").");
+        plugin.getLogger().info("Countdown finished, executing restart (" + config.getRestartAction() + ").");
 
         long delay = Math.max(0L, config.getRestartDelayTicks());
         Bukkit.getScheduler().runTaskLater(plugin, this::executeRestart, delay);
     }
 
     /**
-     * Выполняет перезапуск по окончании отсчёта.
+     * Executes the server restart or shutdown after the countdown ends.
      *
-     * <p>Нативный рестарт идёт через {@code Bukkit.spigot().restart()} — это прямой
-     * вызов статического метода ядра ({@code org.spigotmc.RestartCommand.restart()}),
-     * а НЕ dispatch команды. Поэтому он не может попасть обратно в сам плагин
-     * и не создаёт цикл «рестарт → /restart → рестарт».</p>
-     *
-     * <p>Если ядро не поддерживает метод, безопасно откатываемся на
-     * {@link Bukkit#shutdown()}.</p>
+     * <p>Native restart invokes {@code Bukkit.spigot().restart()} directly rather than
+     * dispatching {@code /restart}, avoiding command recursion. Falls back to
+     * {@link Bukkit#shutdown()} if unsupported by the server core.</p>
      */
     @SuppressWarnings("deprecation")
     private void executeRestart() {
@@ -259,7 +282,7 @@ public final class RestartManager {
             Bukkit.spigot().restart();
         } catch (Throwable throwable) {
             plugin.getLogger().log(Level.WARNING,
-                    "Ядро не поддерживает Bukkit.spigot().restart() — выключаю сервер через Bukkit.shutdown()",
+                    "Server core does not support Bukkit.spigot().restart() — shutting down via Bukkit.shutdown()",
                     throwable);
             config.sendRestartFallback(describe(throwable));
             Bukkit.shutdown();
@@ -287,7 +310,7 @@ public final class RestartManager {
         Component title = config.getBossBarTitle(placeholders);
 
         BossBar bar = BossBar.bossBar(title, 1.0f, config.getBossBarColor(), config.getBossBarOverlay());
-        // В Adventure 4.x затемнение экрана и музыка включаются флагами, а не сеттерами.
+        // Adventure 4.x controls darken-screen and boss music via flags.
         if (config.isBossBarDarkenScreen()) {
             bar.addFlag(BossBar.Flag.DARKEN_SCREEN);
         } else {
@@ -339,18 +362,18 @@ public final class RestartManager {
         }
         bossBarViewers.clear();
 
-        // Страховка: убираем бар у всех, кто онлайн.
+        // Safety pass: hide the bar from every online player.
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.hideBossBar(bar);
         }
     }
 
     // ==================================================================
-    //  Утилиты
+    //  Utilities
     // ==================================================================
 
     /**
-     * Плейсхолдеры для messages.yml: {@code %sender%}, {@code %time%},
+     * Builds the placeholder map for message templates: {@code %sender%}, {@code %time%},
      * {@code %seconds%}, {@code %total%}, {@code %progress%}.
      */
     public Map<String, String> placeholders(String sender, int remaining) {

@@ -8,8 +8,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.itzmr.restartify.manager.RestartManager;
 
 /**
- * Показывает активный BossBar игроку, который вошёл во время отсчёта,
- * и корректно убирает его при выходе.
+ * Displays the active BossBar to players who join mid-countdown
+ * and cleanly hides it when they disconnect.
  */
 public final class PlayerListener implements Listener {
 

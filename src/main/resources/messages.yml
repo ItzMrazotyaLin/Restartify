@@ -1,43 +1,43 @@
 # ==========================================================================
-#  Restartify - текстовые сообщения
+#  Restartify - messages
 # ==========================================================================
-#  Плейсхолдеры:
-#    %sender%   - кто запустил/отменил рестарт (ник игрока или "Console")
-#    %time%     - оставшееся время в формате MM:SS (или H:MM:SS)
-#    %seconds%  - оставшееся время в секундах
-#    %total%    - длительность отсчёта в секундах
-#    %progress% - сколько процентов отсчёта осталось
-#    %error%    - текст ошибки (только в restart-fallback)
+#  Placeholders:
+#    %sender%   - who started/cancelled the restart (player name or "Console")
+#    %time%     - remaining time formatted as MM:SS (or H:MM:SS)
+#    %seconds%  - remaining time in seconds
+#    %total%    - total countdown duration in seconds
+#    %progress% - percentage of countdown remaining
+#    %error%    - error details (only used in restart-fallback)
 #
-#  Форматирование: MiniMessage (<red>, <bold>, <gradient:#ff0000:#0000ff>)
-#  + классические коды (&c, &l, &#RRGGBB) одновременно.
+#  Formatting: MiniMessage (<red>, <bold>, <gradient:#ff0000:#0000ff>)
+#  and legacy codes (&c, &l, &#RRGGBB) are supported simultaneously.
 # ==========================================================================
 
 settings:
-  # Добавлять prefix в начало сообщений в чат (на BossBar префикс не влияет).
+  # Prepend prefix to chat messages (does not affect the BossBar).
   prefix-enabled: true
 
 prefix: "<gray>[</gray><gradient:#ff5f6d:#ffc371><bold>Restartify</bold></gradient><gray>]</gray> "
 
-no-permission: "<red>У вас нет прав на использование этой команды."
-usage: "<gray>Использование: <white>/reboot <gray>[start|cancel|reload]"
+no-permission: "<red>You do not have permission to use this command."
+usage: "<gray>Usage: <white>/reboot <gray>[start|cancel|reload]"
 
-# --- Обратный отсчёт -----------------------------------------------------
-started: "<gray>Рестарт запущен: <white>%sender%<gray>, перезапуск через <white>%time%<gray>."
-announcement: "<red><bold>Внимание!</bold></red> <gray>Сервер будет перезапущен через <white>%time%"
-already-running: "<yellow>Рестарт уже запланирован. Осталось <white>%time%<gray>."
-restarting: "<red><bold>Перезапуск...</bold></red> <gray>Сервер перезагружается, ожидайте."
+# --- Countdown ------------------------------------------------------------
+started: "<gray>Restart initiated by <white>%sender%<gray>, restarting in <white>%time%<gray>."
+announcement: "<red><bold>Attention!</bold></red> <gray>The server will restart in <white>%time%"
+already-running: "<yellow>A restart is already scheduled. Time remaining: <white>%time%<gray>."
+restarting: "<red><bold>Restarting...</bold></red> <gray>The server is restarting, please wait."
 
-# --- Отмена --------------------------------------------------------------
-not-running: "<yellow>Обратный отсчёт не запущен."
-canceled: "<gray>Отсчёт отменён: <white>%sender%<gray>, оставалось <white>%time%<gray>."
-canceled-broadcast: "<yellow>Перезапуск сервера <red>отменён<yellow>."
+# --- Cancellation ---------------------------------------------------------
+not-running: "<yellow>No restart countdown is currently running."
+canceled: "<gray>Countdown cancelled by <white>%sender%<gray> with <white>%time%<gray> remaining."
+canceled-broadcast: "<yellow>Server restart has been <red>cancelled<yellow>."
 
-# --- Служебное -----------------------------------------------------------
-reload-success: "<green>Конфигурация Restartify успешно перезагружена."
-reload-failed: "<red>Не удалось перезагрузить конфигурацию. Подробности в консоли."
-restart-fallback: "<red>Нативный рестарт не поддерживается ядром, сервер будет выключен: <white>%error%"
+# --- Service --------------------------------------------------------------
+reload-success: "<green>Restartify configuration successfully reloaded."
+reload-failed: "<red>Failed to reload configuration. Check console for details."
+restart-fallback: "<red>Native restart is not supported by this server core, shutting down instead: <white>%error%"
 
-# --- BossBar -------------------------------------------------------------
+# --- BossBar --------------------------------------------------------------
 bossbar:
-  title: "<red><bold>Рестарт через</bold> <white>%time%"
+  title: "<red><bold>Restarting in</bold> <white>%time%"
