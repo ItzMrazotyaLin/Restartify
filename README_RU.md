@@ -5,7 +5,7 @@
 [![Paper](https://img.shields.io/badge/server-Paper%20%2F%20Purpur-4A4A4A?style=flat-square&logo=papermc)](https://papermc.io)
 [![Java](https://img.shields.io/badge/java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net)
 [![API](https://img.shields.io/badge/api-1.20%20--%2026.x%2B-4A4A4A?style=flat-square)](https://papermc.io)
-[![Version](https://img.shields.io/badge/version-1.1.0-2ea44f?style=flat-square)](gradle.properties)
+[![Version](https://img.shields.io/badge/version-1.1.0-2ea44f?style=flat-square)](https://github.com/ItzMrazotyaLin/Restartify/releases/tag/1.1.0)
 
 Плагин для **плавного перезапуска сервера** на Paper/Purpur (1.21+ и 1.20+): перед рестартом запускается точный обратный отсчёт с настраиваемыми оповещениями в чат, BossBar на экране, автоматической **блокировкой PvP** и **планировщиком авторестарта** по часовым поясам, а сам перезапуск выполняется нативным методом ядра.
 
